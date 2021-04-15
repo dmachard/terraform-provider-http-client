@@ -1,15 +1,3 @@
-# HTTP client provider for terraform 
-
-A terraform HTTP provider for interacting with HTTP servers. It's an alternative to the hashicorp http provider.
-
-## Requirements
-
--	[Terraform](https://www.terraform.io/downloads.html) > 0.12
--	[Go](https://golang.org/doc/install) >= 1.15
-
-## Using the Provider
-
-```hcl
 terraform {
   required_providers {
     httpclient = {
@@ -32,6 +20,7 @@ output "response_body" {
 output "response_code" {
   value = data.httpclient_request.req.response_code
 }
-```
 
-For detailed usage see [provider's documentation page](https://registry.terraform.io/providers/dmachard/http-client/latest/docs)
+output "response_headers" {
+  value = data.httpclient_request.req.response_headers
+}
