@@ -11,6 +11,10 @@ data "httpclient_request" "req" {
   url = "http://httpbin.org/hidden-basic-auth/user/passwd"
   username = "user"
   password = "passwd"
+  request_headers = {
+    Content-Type: "application/x-www-form-urlencoded",
+  }
+  request_body = "scope=access"
 }
 
 output "response_body" {
