@@ -3,6 +3,7 @@ package httpclient
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -29,6 +30,11 @@ func dataSourceRequest() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				Default:  "",
+			},
+			"insecure": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  false,
 			},
 			"request_headers": {
 				Type:     schema.TypeMap,
@@ -70,6 +76,8 @@ func dataSourceRequestRead(ctx context.Context, d *schema.ResourceData, m interf
 	username := d.Get("username").(string)
 	password := d.Get("password").(string)
 
+	insecure := d.Get("insecure").(bool)
+
 	// warning or errors can be collected in a slice type
 	var diags diag.Diagnostics
 
@@ -90,7 +98,13 @@ func dataSourceRequestRead(ctx context.Context, d *schema.ResourceData, m interf
 	}
 
 	// init go client and send request
-	client := &http.Client{Timeout: 10 * time.Second}
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: insecure,
+		},
+	}
+
+	client := &http.Client{Transport: tr, Timeout: 10 * time.Second}
 	r, err := client.Do(req)
 	if err != nil {
 		return diag.FromErr(err)

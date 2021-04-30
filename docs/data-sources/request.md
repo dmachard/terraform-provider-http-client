@@ -42,6 +42,7 @@ output "response_code" {
 
 - **username** (String) Username for Basic Authentication
 - **password** (String) Password for Basic Authentication
+- **insecure** (Boolean) Skip certificate validation. Default is `false`
 - **request_headers** (String) A map of strings representing additional HTTP headers
 - **request_method** (String) Method to use to perform request. Default is `GET`
 - **request_body** (String) Body of request to send
