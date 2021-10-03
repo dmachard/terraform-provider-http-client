@@ -36,22 +36,22 @@ output "response_code" {
 
 ### Required
 
-- **url** (String) URL query string to request
+- `url` (String) URL query string to request
 
 ### Optionals
 
-- **username** (String) Username for Basic Authentication
-- **password** (String) Password for Basic Authentication
-- **insecure** (Boolean) Skip certificate validation. Default is `false`
-- **request_headers** (String) A map of strings representing additional HTTP headers
-- **request_method** (String) Method to use to perform request. Default is `GET`
-- **request_body** (String) Body of request to send
+- `username` (String) Username for Basic Authentication
+- `password` (String) Password for Basic Authentication
+- `insecure` (Boolean) Skip certificate validation. Default is `false`
+- `request_headers` (String) A map of strings representing additional HTTP headers
+- `request_method` (String) Method to use to perform request. Default is `GET`
+- `request_body` (String) Body of request to send
 
 
 ## Attributes Reference
 
 The following attributes are exported:
 
-- **response_code** - the HTTP status codes (200, 404, etc.)
-- **response_headers** - A map of strings representing the response HTTP headers. 
-- **response-body** - The raw body of the HTTP response.
+- `response_code` - the HTTP status codes (200, 404, etc.)
+- `response_headers` - A map of strings representing the response HTTP headers. 
+- `response_body` - The raw body of the HTTP response.
