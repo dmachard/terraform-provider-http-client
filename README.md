@@ -5,7 +5,7 @@ A terraform HTTP provider for interacting with HTTP servers. It's an alternative
 ## Requirements
 
 -	[Terraform](https://www.terraform.io/downloads.html) > 0.12
--	[Go](https://golang.org/doc/install) >= 1.15
+-	[Go](https://golang.org/doc/install) >= 1.22
 
 ## Using the Provider
 
