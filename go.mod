@@ -2,7 +2,7 @@ module github.com/dmachard/terraform-provider-http-client
 
 go 1.24.0
 
-require github.com/hashicorp/terraform-plugin-sdk/v2 v2.38.0
+require github.com/hashicorp/terraform-plugin-sdk/v2 v2.38.1
 
 require (
 	github.com/agext/levenshtein v1.2.2 // indirect
