@@ -1,16 +1,39 @@
 package httpclient
 
 import (
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"context"
+
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/provider"
+	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
 )
 
-// Provider -
-func Provider() *schema.Provider {
-	return &schema.Provider{
-		Schema:       map[string]*schema.Schema{},
-		ResourcesMap: map[string]*schema.Resource{},
-		DataSourcesMap: map[string]*schema.Resource{
-			"httpclient_request": dataSourceRequest(),
-		},
+var _ provider.Provider = &HTTPClientProvider{}
+
+type HTTPClientProvider struct{}
+
+func New() provider.Provider {
+	return &HTTPClientProvider{}
+}
+
+func (p *HTTPClientProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "httpclient"
+}
+
+func (p *HTTPClientProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
+	resp.Schema = schema.Schema{}
+}
+
+func (p *HTTPClientProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+}
+
+func (p *HTTPClientProvider) Resources(_ context.Context) []func() resource.Resource {
+	return []func() resource.Resource{}
+}
+
+func (p *HTTPClientProvider) DataSources(_ context.Context) []func() datasource.DataSource {
+	return []func() datasource.DataSource{
+		NewRequestDataSource,
 	}
 }

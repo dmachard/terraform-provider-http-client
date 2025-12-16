@@ -39,3 +39,20 @@ output "response_code" {
 ```
 
 For detailed usage see [provider's documentation page](https://registry.terraform.io/providers/dmachard/http-client/latest/docs)
+
+
+## Testing
+
+Local test with terraform
+
+```bash
+go build -o terraform-provider-http-client
+
+mkdir -p ~/.terraform.d/plugins/registry.terraform.io/dmachard/http-client/1.0.0/linux_amd64/
+cp terraform-provider-http-client ~/.terraform.d/plugins/registry.terraform.io/dmachard/http-client/1.0.0/linux_amd64/
+
+cd examples/
+terraform init
+
+terraform plan
+```
