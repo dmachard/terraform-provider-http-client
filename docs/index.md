@@ -8,7 +8,7 @@ A terraform HTTP provider for interacting with HTTP servers. It's an alternative
 terraform {
   required_providers {
     httpclient = {
-      version = "0.0.3"
+      version = "1.0.0"
       source  = "dmachard/http-client"
     }
   }

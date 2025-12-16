@@ -4,130 +4,167 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-func dataSourceRequest() *schema.Resource {
-	return &schema.Resource{
-		ReadContext: dataSourceRequestRead,
-		Schema: map[string]*schema.Schema{
-			"url": {
-				Type:     schema.TypeString,
+// Ensure implementation
+var _ datasource.DataSource = &RequestDataSource{}
+
+type RequestDataSource struct{}
+
+// Constructor
+func NewRequestDataSource() datasource.DataSource {
+	return &RequestDataSource{}
+}
+
+// Metadata
+func (d *RequestDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = "httpclient_request"
+}
+
+// Schema
+func (d *RequestDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"url": schema.StringAttribute{
 				Required: true,
 			},
-			"username": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Default:  "",
-			},
-			"password": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Default:  "",
-			},
-			"insecure": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				Default:  false,
-			},
-			"request_headers": {
-				Type:     schema.TypeMap,
+			"username": schema.StringAttribute{
 				Optional: true,
 			},
-			"request_method": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Default:  "GET",
+			"password": schema.StringAttribute{
+				Optional:  true,
+				Sensitive: true,
 			},
-			"request_body": {
-				Type:     schema.TypeString,
+			"insecure": schema.BoolAttribute{
 				Optional: true,
-				Default:  nil,
 			},
-			"response_headers": {
-				Type:     schema.TypeMap,
+			"timeout": schema.Int64Attribute{
+				Optional: true,
+			},
+			"request_headers": schema.MapAttribute{
+				ElementType: types.StringType,
+				Optional:    true,
+			},
+			"request_method": schema.StringAttribute{
+				Optional: true,
+			},
+			"request_body": schema.StringAttribute{
+				Optional: true,
+			},
+			"response_headers": schema.MapAttribute{
+				ElementType: types.StringType,
+				Computed:    true,
+			},
+			"response_code": schema.Int64Attribute{
 				Computed: true,
 			},
-			"response_code": {
-				Type:     schema.TypeInt,
-				Computed: true,
-			},
-			"response_body": {
-				Type:     schema.TypeString,
+			"response_body": schema.StringAttribute{
 				Computed: true,
 			},
 		},
 	}
 }
 
-func dataSourceRequestRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
+// Read
+func (d *RequestDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	// Define model
+	var data struct {
+		URL            types.String `tfsdk:"url"`
+		Username       types.String `tfsdk:"username"`
+		Password       types.String `tfsdk:"password"`
+		Insecure       types.Bool   `tfsdk:"insecure"`
+		RequestHeaders types.Map    `tfsdk:"request_headers"`
+		RequestMethod  types.String `tfsdk:"request_method"`
+		RequestBody    types.String `tfsdk:"request_body"`
+		Timeout        types.Int64  `tfsdk:"timeout"`
 
-	// get vars
-	url := d.Get("url").(string)
-	method := d.Get("request_method").(string)
-	body := []byte(d.Get("request_body").(string))
-	req_headers := d.Get("request_headers").(map[string]interface{})
-	username := d.Get("username").(string)
-	password := d.Get("password").(string)
+		ResponseHeaders types.Map    `tfsdk:"response_headers"`
+		ResponseCode    types.Int64  `tfsdk:"response_code"`
+		ResponseBody    types.String `tfsdk:"response_body"`
+	}
 
-	insecure := d.Get("insecure").(bool)
+	// Read data from Terraform configuration
+	diags := req.Config.Get(ctx, &data)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-	// warning or errors can be collected in a slice type
-	var diags diag.Diagnostics
+	// Prepare HTTP request
+	method := "GET"
+	if !data.RequestMethod.IsNull() {
+		method = data.RequestMethod.ValueString()
+	}
+	body := []byte{}
+	if !data.RequestBody.IsNull() {
+		body = []byte(data.RequestBody.ValueString())
+	}
 
-	// init http request
-	req, err := http.NewRequest(method, url, bytes.NewBuffer(body))
+	reqHTTP, err := http.NewRequest(method, data.URL.ValueString(), bytes.NewBuffer(body))
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError("Error creating HTTP request", err.Error())
+		return
 	}
 
-	// set basic auth ?
-	if len(username) > 0 {
-		req.SetBasicAuth(username, password)
+	// Basic auth
+	if !data.Username.IsNull() && data.Username.ValueString() != "" {
+		reqHTTP.SetBasicAuth(data.Username.ValueString(), data.Password.ValueString())
 	}
 
-	// add headers
-	for name, value := range req_headers {
-		req.Header.Set(name, value.(string))
+	// Headers
+	if !data.RequestHeaders.IsNull() {
+		headers := data.RequestHeaders.Elements()
+		for k, v := range headers {
+			reqHTTP.Header.Set(k, v.(types.String).ValueString())
+		}
 	}
 
-	// init go client and send request
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: insecure,
+	// set timeout
+	timeout := 10 * time.Second
+	if !data.Timeout.IsNull() {
+		timeout = time.Duration(data.Timeout.ValueInt64()) * time.Second
+	}
+
+	// Send HTTP request
+	client := &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: data.Insecure.ValueBool()},
 		},
 	}
 
-	client := &http.Client{Transport: tr, Timeout: 10 * time.Second}
-	r, err := client.Do(req)
+	r, err := client.Do(reqHTTP)
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError("Error sending HTTP request", err.Error())
+		return
 	}
 	defer r.Body.Close()
 
-	// read response body
-	rsp_body, err := ioutil.ReadAll(r.Body)
+	respBody, err := io.ReadAll(r.Body)
 	if err != nil {
-		return diag.FromErr(err)
+		resp.Diagnostics.AddError("Error reading response body", err.Error())
+		return
 	}
 
-	// get headers from response
-	rsp_headers := make(map[string]string)
+	// Response headers
+	rspHeaders := make(map[string]attr.Value)
 	for k, v := range r.Header {
-		rsp_headers[k] = strings.Join(v, ", ")
+		rspHeaders[k] = types.StringValue(strings.Join(v, ", "))
 	}
 
-	// set data resource
-	d.Set("response_code", r.StatusCode)
-	d.Set("response_body", string(rsp_body))
-	d.Set("response_headers", rsp_headers)
-	d.SetId(url)
+	data.ResponseHeaders = types.MapValueMust(types.StringType, rspHeaders)
+	data.ResponseBody = types.StringValue(string(respBody))
+	data.ResponseCode = types.Int64Value(int64(r.StatusCode))
 
-	return diags
+	// Set ID
+	resp.State.Set(ctx, &data)
 }
