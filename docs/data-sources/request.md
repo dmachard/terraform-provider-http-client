@@ -46,7 +46,7 @@ output "response_code" {
 - `request_headers` (String) A map of strings representing additional HTTP headers
 - `request_method` (String) Method to use to perform request. Default is `GET`
 - `request_body` (String) Body of request to send
-
+- `timeout` (Integer) Timeout in second for HTTP connection. Default is `10` seconds
 
 ## Attributes Reference
 

@@ -47,6 +47,9 @@ func (d *RequestDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 			"insecure": schema.BoolAttribute{
 				Optional: true,
 			},
+			"timeout": schema.Int64Attribute{
+				Optional: true,
+			},
 			"request_headers": schema.MapAttribute{
 				ElementType: types.StringType,
 				Optional:    true,
@@ -82,6 +85,7 @@ func (d *RequestDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		RequestHeaders types.Map    `tfsdk:"request_headers"`
 		RequestMethod  types.String `tfsdk:"request_method"`
 		RequestBody    types.String `tfsdk:"request_body"`
+		Timeout        types.Int64  `tfsdk:"timeout"`
 
 		ResponseHeaders types.Map    `tfsdk:"response_headers"`
 		ResponseCode    types.Int64  `tfsdk:"response_code"`
@@ -124,9 +128,15 @@ func (d *RequestDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		}
 	}
 
+	// set timeout
+	timeout := 10 * time.Second
+	if !data.Timeout.IsNull() {
+		timeout = time.Duration(data.Timeout.ValueInt64()) * time.Second
+	}
+
 	// Send HTTP request
 	client := &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: timeout,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: data.Insecure.ValueBool()},
 		},

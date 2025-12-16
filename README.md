@@ -4,7 +4,7 @@ A terraform HTTP provider for interacting with HTTP servers. It's an alternative
 
 ## Requirements
 
--	[Terraform](https://www.terraform.io/downloads.html) > 0.12
+-	[Terraform](https://www.terraform.io/downloads.html) > 1.11
 -	[Go](https://golang.org/doc/install) >= 1.22
 
 ## Using the Provider
@@ -13,7 +13,7 @@ A terraform HTTP provider for interacting with HTTP servers. It's an alternative
 terraform {
   required_providers {
     httpclient = {
-      version = "0.0.3"
+      version = "1.0.0"
       source  = "github.com/dmachard/http-client"
     }
   }
@@ -46,9 +46,13 @@ For detailed usage see [provider's documentation page](https://registry.terrafor
 Local test with terraform
 
 ```bash
+# Build the provider binary
 go build -o terraform-provider-http-client
 
+# Create the local plugin directory
 mkdir -p ~/.terraform.d/plugins/registry.terraform.io/dmachard/http-client/1.0.0/linux_amd64/
+
+# Copy the provider binary
 cp terraform-provider-http-client ~/.terraform.d/plugins/registry.terraform.io/dmachard/http-client/1.0.0/linux_amd64/
 
 cd examples/
