@@ -7,6 +7,13 @@ A terraform HTTP provider for interacting with HTTP servers. It's an alternative
 -	[Terraform](https://www.terraform.io/downloads.html) > 1.11
 -	[Go](https://golang.org/doc/install) >= 1.22
 
+## Features
+
+- **Data Source**: Traditional HTTP requests with state persistence
+- **Ephemeral Request**: HTTP requests without state persistence (Terraform 1.11+)
+- Basic authentication support
+- Custom headers and request methods
+
 ## Using the Provider
 
 ```hcl
