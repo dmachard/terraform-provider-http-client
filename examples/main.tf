@@ -7,14 +7,28 @@ terraform {
   }
 }
 
+ephemeral "httpclient_request" "token" {
+  url            = "https://httpbingo.org/post"
+  request_method = "POST"
+  request_headers = { Content-Type = "application/json" }
+  request_body   = jsonencode({ access_token = "faketoken" })
+}
+
+ephemeral "httpclient_request" "check" {
+  url = "https://httpbingo.org/bearer"
+  request_headers = {
+    Authorization = "Bearer ${jsondecode(ephemeral.httpclient_request.token.response_body).json.access_token}"
+  }
+}
+
 data "httpclient_request" "req" {
   url = "http://httpbingo.org/basic-auth/user/passwd"
   username = "user"
-  password = "passwd"
+  password = "${jsondecode(ephemeral.httpclient_request.token.response_body).json.access_token}"
   request_headers = {
     Content-Type: "application/x-www-form-urlencoded",
   }
-  request_body = "scope=access"
+  request_body = "access=token"
 }
 
 output "response_body" {
@@ -28,4 +42,3 @@ output "response_code" {
 output "response_headers" {
   value = data.httpclient_request.req.response_headers
 }
-
