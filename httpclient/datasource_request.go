@@ -141,16 +141,28 @@ func (d *RequestDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		expCodes = append(expCodes, int(v.ValueInt64()))
 	}
 
+	// Default method GET
+	method := "GET"
+	if !data.Method.IsNull() && data.Method.ValueString() != "" {
+		method = data.Method.ValueString()
+	}
+
+	// Timeout
+	timeout := 10 * time.Second
+	if !data.Timeout.IsNull() {
+		timeout = time.Duration(data.Timeout.ValueInt64()) * time.Second
+	}
+
 	// Execute request
 	result, err := ExecuteRequest(RequestConfig{
 		Ctx:                 ctx,
 		URL:                 data.URL.ValueString(),
-		Method:              "GET",
-		Body:                []byte{},
+		Method:              method,
+		Body:                []byte(data.Body.ValueString()),
 		Headers:             hdrs,
 		Username:            data.Username.ValueString(),
 		Password:            data.Password.ValueString(),
-		Timeout:             time.Duration(10) * time.Second,
+		Timeout:             timeout,
 		Insecure:            data.Insecure.ValueBool(),
 		TLSMinVersion:       data.TLSMinVersion.ValueString(),
 		ClientCertPEM:       data.ClientCert.ValueString(),
