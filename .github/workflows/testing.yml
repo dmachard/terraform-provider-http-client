@@ -1,4 +1,4 @@
-name: Go unit tests
+name: Go tests (unit + acceptance)
 
 on:
   push:
@@ -28,4 +28,15 @@ jobs:
           go test ./... \
             -race \
             -cover \
-            -count=1
+            -count=1 \
+            -short
+
+      - name: Run Terraform acceptance tests
+        env:
+          TF_ACC: 1
+        run: |
+          go test ./... \
+            -race \
+            -count=1 \
+            -v \
+            -run TestAcc

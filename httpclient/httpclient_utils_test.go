@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -27,6 +28,42 @@ func TestExecuteRequest_OK(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 200, result.ResponseCode)
 	require.JSONEq(t, `{"ok":true}`, string(result.ResponseBody))
+}
+
+func TestExecuteRequest_ExpectedStatusCodes_OK(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(201)
+	}))
+	defer ts.Close()
+
+	_, err := ExecuteRequest(RequestConfig{
+		Ctx:                 context.Background(),
+		URL:                 ts.URL,
+		Method:              "GET",
+		Timeout:             5 * time.Second,
+		ExpectedStatusCodes: []int{200, 201},
+		FailOnHTTPError:     true,
+	})
+
+	require.NoError(t, err)
+}
+
+func TestExecuteRequest_ExpectedStatusCodes_Fail(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+	}))
+	defer ts.Close()
+
+	_, err := ExecuteRequest(RequestConfig{
+		Ctx:                 context.Background(),
+		URL:                 ts.URL,
+		Method:              "GET",
+		Timeout:             5 * time.Second,
+		ExpectedStatusCodes: []int{200},
+		FailOnHTTPError:     true,
+	})
+
+	require.Error(t, err)
 }
 
 func TestExecuteRequest_UnexpectedStatus(t *testing.T) {
@@ -68,4 +105,87 @@ func TestExecuteRequest_Method(t *testing.T) {
 	})
 
 	require.NoError(t, err)
+}
+
+func TestExecuteRequest_Headers(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		require.Equal(t, "Bearer token123", r.Header.Get("Authorization"))
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	_, err := ExecuteRequest(RequestConfig{
+		Ctx:    context.Background(),
+		URL:    ts.URL,
+		Method: "GET",
+		Headers: map[string]string{
+			"Content-Type":  "application/json",
+			"Authorization": "Bearer token123",
+		},
+		Timeout: 5 * time.Second,
+	})
+
+	require.NoError(t, err)
+}
+
+func TestExecuteRequest_Body(t *testing.T) {
+	expected := `{"name":"john"}`
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		require.JSONEq(t, expected, string(body))
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	_, err := ExecuteRequest(RequestConfig{
+		Ctx:     context.Background(),
+		URL:     ts.URL,
+		Method:  "POST",
+		Body:    []byte(expected),
+		Timeout: 5 * time.Second,
+	})
+
+	require.NoError(t, err)
+}
+
+func TestExecuteRequest_BasicAuth(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user, pass, ok := r.BasicAuth()
+		require.True(t, ok)
+		require.Equal(t, "user", user)
+		require.Equal(t, "pass", pass)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	_, err := ExecuteRequest(RequestConfig{
+		Ctx:      context.Background(),
+		URL:      ts.URL,
+		Method:   "GET",
+		Username: "user",
+		Password: "pass",
+		Timeout:  5 * time.Second,
+	})
+
+	require.NoError(t, err)
+}
+
+func TestExecuteRequest_Timeout(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(200 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	_, err := ExecuteRequest(RequestConfig{
+		Ctx:     context.Background(),
+		URL:     ts.URL,
+		Method:  "GET",
+		Timeout: 50 * time.Millisecond,
+	})
+
+	require.Error(t, err)
 }

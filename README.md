@@ -29,6 +29,7 @@ For detailed usage see [provider's documentation page](https://registry.terrafor
 Test unit
 
 ```bash
+export TF_ACC=1
 go test -v ./...
 ```
 
