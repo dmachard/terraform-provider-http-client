@@ -118,6 +118,7 @@ data "httpclient_request" "custom_ca" {
 - `password` (String) Password for Basic Authentication
 
 - `insecure` (Boolean) Skip certificate validation. Default is `false`
+
 - `tls_min_version` (String) - Minimum TLS version to accept. Default is `TLS12`. Valid values:
   - `TLS10` - TLS 1.0 (deprecated, use only for legacy systems)
   - `TLS11` - TLS 1.1 (deprecated, use only for legacy systems)
@@ -126,6 +127,7 @@ data "httpclient_request" "custom_ca" {
 - `http_version` (String) - HTTP protocol version to use. Default is `HTTP1.1`. Valid values:
   - `HTTP1.1` or `HTTP/1.1` - HTTP/1.1
   - `HTTP2` or `HTTP/2` - HTTP/2
+  - `HTTP3` or `HTTP/3` - HTTP/3 over QUIC (fastest, requires TLS 1.3)
 
 - `request_headers` (String) A map of strings representing additional HTTP headers
 - `request_method` (String) Method to use to perform request. Default is `GET`
