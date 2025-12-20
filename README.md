@@ -1,6 +1,7 @@
 # HTTP client provider for terraform 
 
-A terraform HTTP provider for interacting with HTTP servers. It's an alternative to the hashicorp http provider.
+A terraform HTTP provider for interacting with HTTP servers.
+It's an alternative to the hashicorp http provider.
 
 ## Requirements
 
@@ -9,10 +10,13 @@ A terraform HTTP provider for interacting with HTTP servers. It's an alternative
 
 ## Features
 
-- **Data Source**: Traditional HTTP requests with state persistence
-- **Ephemeral Request**: HTTP requests without state persistence (Terraform 1.11+)
+- Data Source: Traditional HTTP requests with state persistence
+- Ephemeral Request: HTTP requests without state persistence (Terraform 1.11+)
+- mTLS support
 - Basic authentication support
 - Custom headers and request methods
+- Custom CA certificates
+- Configurable TLS versions
 
 ## Using the Provider
 
