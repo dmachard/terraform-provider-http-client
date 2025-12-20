@@ -89,6 +89,12 @@ func (r *EphemeralRequest) Schema(ctx context.Context, req ephemeral.SchemaReque
 			"fail_on_http_error": ephemeralschema.BoolAttribute{
 				Optional: true,
 			},
+			"follow_redirects": ephemeralschema.BoolAttribute{
+				Optional: true,
+			},
+			"max_redirects": ephemeralschema.Int64Attribute{
+				Optional: true,
+			},
 		},
 	}
 }
@@ -110,6 +116,8 @@ func (r *EphemeralRequest) Open(ctx context.Context, req ephemeral.OpenRequest, 
 		TLSMinVersion       types.String  `tfsdk:"tls_min_version"`
 		ExpectedStatusCodes []types.Int64 `tfsdk:"expected_status_codes"`
 		FailOnHTTPError     types.Bool    `tfsdk:"fail_on_http_error"`
+		FollowRedirects     types.Bool    `tfsdk:"follow_redirects"`
+		MaxRedirects        types.Int64   `tfsdk:"max_redirects"`
 
 		ResponseCode    types.Int64  `tfsdk:"response_code"`
 		ResponseBody    types.String `tfsdk:"response_body"`
@@ -166,6 +174,8 @@ func (r *EphemeralRequest) Open(ctx context.Context, req ephemeral.OpenRequest, 
 		TLSMinVersion:       data.TLSMinVersion.ValueString(),
 		ExpectedStatusCodes: expCodes,
 		FailOnHTTPError:     data.FailOnHTTPError.ValueBool(),
+		FollowRedirects:     data.FollowRedirects.ValueBool(),
+		MaxRedirects:        int(data.MaxRedirects.ValueInt64()),
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("HTTP request failed", err.Error())

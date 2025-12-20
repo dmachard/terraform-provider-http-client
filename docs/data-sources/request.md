@@ -157,6 +157,8 @@ data "httpclient_request" "custom_ca" {
 - `ca_cert` (String) – CA certificate in PEM format to verify server certificate.
 - `expected_status_codes` (List of Int) – HTTP status codes considered successful. Default: all codes accepted.
 - `fail_on_http_error` (Boolean) – Whether to fail the request if the HTTP status is not in expected_status_codes. Default: true.
+- `follow_redirects` (Boolean) – Whether to follow HTTP redirects (301, 302, 307, etc.). Default: true.
+- `max_redirects` (Integer) – Maximum number of redirects to follow if follow_redirects is true. Default: 10.
 
 ## Attributes Reference
 
