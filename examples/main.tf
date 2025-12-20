@@ -24,7 +24,7 @@ ephemeral "httpclient_request" "check" {
 data "httpclient_request" "req" {
   url = "http://httpbingo.org/basic-auth/user/passwd"
   username = "user"
-  password = "${jsondecode(ephemeral.httpclient_request.token.response_body).json.access_token}"
+  password = "password"
   request_headers = {
     Content-Type: "application/x-www-form-urlencoded",
   }

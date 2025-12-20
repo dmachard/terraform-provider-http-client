@@ -40,7 +40,11 @@ data "httpclient_request" "auth_example" {
   url      = "http://httpbin.org/hidden-basic-auth/user/passwd"
   username = "user"
   password = "passwd"
-  
+
+  # Require TLS 1.3 and use HTTP/2
+  tls_min_version = "TLS13"
+  http_version    = "HTTP2"
+
   request_headers = {
     Content-Type = "application/x-www-form-urlencoded"
   }
@@ -114,11 +118,16 @@ data "httpclient_request" "custom_ca" {
 - `password` (String) Password for Basic Authentication
 
 - `insecure` (Boolean) Skip certificate validation. Default is `false`
+
 - `tls_min_version` (String) - Minimum TLS version to accept. Default is `TLS12`. Valid values:
   - `TLS10` - TLS 1.0 (deprecated, use only for legacy systems)
   - `TLS11` - TLS 1.1 (deprecated, use only for legacy systems)
   - `TLS12` - TLS 1.2 (recommended minimum)
   - `TLS13` - TLS 1.3 (most secure)
+- `http_version` (String) - HTTP protocol version to use. Default is `HTTP1.1`. Valid values:
+  - `HTTP1.1` or `HTTP/1.1` - HTTP/1.1
+  - `HTTP2` or `HTTP/2` - HTTP/2
+  - `HTTP3` or `HTTP/3` - HTTP/3 over QUIC (fastest, requires TLS 1.3)
 
 - `request_headers` (String) A map of strings representing additional HTTP headers
 - `request_method` (String) Method to use to perform request. Default is `GET`

@@ -21,22 +21,6 @@ import (
 // Ensure implementation
 var _ datasource.DataSource = &RequestDataSource{}
 
-// getTLSVersion converts a string version to tls.Version constant
-func getTLSVersion(version string) (uint16, error) {
-	switch version {
-	case "1.0":
-		return tls.VersionTLS10, nil
-	case "1.1":
-		return tls.VersionTLS11, nil
-	case "1.2":
-		return tls.VersionTLS12, nil
-	case "1.3":
-		return tls.VersionTLS13, nil
-	default:
-		return 0, fmt.Errorf("invalid TLS version: %s (valid values: 1.0, 1.1, 1.2, 1.3)", version)
-	}
-}
-
 type RequestDataSource struct{}
 
 // Constructor
@@ -89,6 +73,10 @@ func (d *RequestDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 			"response_body": schema.StringAttribute{
 				Computed: true,
 			},
+			"http_version": schema.StringAttribute{
+				Optional:    true,
+				Description: "HTTP version to use (HTTP1.1, HTTP2). Default: HTTP1.1",
+			},
 			// mTLS attributes
 			"client_cert": schema.StringAttribute{
 				Optional:    true,
@@ -124,6 +112,7 @@ func (d *RequestDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		RequestMethod  types.String `tfsdk:"request_method"`
 		RequestBody    types.String `tfsdk:"request_body"`
 		Timeout        types.Int64  `tfsdk:"timeout"`
+		HTTPVersion    types.String `tfsdk:"http_version"`
 
 		// mTLS fields
 		ClientCert    types.String `tfsdk:"client_cert"`
@@ -239,11 +228,15 @@ func (d *RequestDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	}
 
 	// Send HTTP request
+	transport, err := configureHTTPTransport(data.HTTPVersion.ValueString(), tlsConfig)
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid HTTP version", err.Error())
+		return
+	}
+
 	client := &http.Client{
-		Timeout: timeout,
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-		},
+		Timeout:   timeout,
+		Transport: transport,
 	}
 
 	r, err := client.Do(reqHTTP)
