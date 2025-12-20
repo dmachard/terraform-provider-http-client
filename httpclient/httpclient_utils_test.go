@@ -189,3 +189,28 @@ func TestExecuteRequest_Timeout(t *testing.T) {
 
 	require.Error(t, err)
 }
+
+func TestExecuteRequest_FollowRedirects(t *testing.T) {
+	redirectTS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/final" {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"ok":true}`))
+			return
+		}
+		http.Redirect(w, r, "/final", http.StatusFound)
+	}))
+	defer redirectTS.Close()
+
+	result, err := ExecuteRequest(RequestConfig{
+		Ctx:             context.Background(),
+		URL:             redirectTS.URL,
+		Method:          "GET",
+		Timeout:         5 * time.Second,
+		FollowRedirects: true,
+		MaxRedirects:    5,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, 200, result.ResponseCode)
+	require.JSONEq(t, `{"ok":true}`, string(result.ResponseBody))
+}

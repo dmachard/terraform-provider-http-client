@@ -81,6 +81,9 @@ type RequestConfig struct {
 	HTTPVersion         string
 	ExpectedStatusCodes []int
 	FailOnHTTPError     bool
+
+	FollowRedirects bool
+	MaxRedirects    int
 }
 
 type RequestResult struct {
@@ -156,9 +159,24 @@ func ExecuteRequest(cfg RequestConfig) (*RequestResult, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	maxRedirects := cfg.MaxRedirects
+	if maxRedirects == 0 {
+		maxRedirects = 10
+	}
+
 	client := &http.Client{
 		Timeout:   cfg.Timeout,
 		Transport: transport,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if !cfg.FollowRedirects {
+				return http.ErrUseLastResponse
+			}
+			if len(via) >= maxRedirects {
+				return fmt.Errorf("stopped after %d redirects", maxRedirects)
+			}
+			return nil
+		},
 	}
 
 	// Do request

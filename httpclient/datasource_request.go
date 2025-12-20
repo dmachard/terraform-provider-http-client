@@ -66,32 +66,33 @@ func (d *RequestDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 				Computed: true,
 			},
 			"http_version": schema.StringAttribute{
-				Optional:    true,
-				Description: "HTTP version to use (HTTP1.1, HTTP2). Default: HTTP1.1",
+				Optional: true,
 			},
 			"client_cert": schema.StringAttribute{
-				Optional:    true,
-				Sensitive:   true,
-				Description: "Client certificate in PEM format for mTLS authentication",
+				Optional:  true,
+				Sensitive: true,
 			},
 			"client_key": schema.StringAttribute{
-				Optional:    true,
-				Sensitive:   true,
-				Description: "Client private key in PEM format for mTLS authentication",
+				Optional:  true,
+				Sensitive: true,
 			},
 			"ca_cert": schema.StringAttribute{
-				Optional:    true,
-				Description: "CA certificate in PEM format to verify server certificate",
+				Optional: true,
 			},
 			"tls_min_version": schema.StringAttribute{
-				Optional:    true,
-				Description: "Minimum TLS version (1.0, 1.1, 1.2, 1.3). Default: 1.2",
+				Optional: true,
 			},
 			"expected_status_codes": schema.ListAttribute{
 				Optional:    true,
 				ElementType: types.Int64Type,
 			},
 			"fail_on_http_error": schema.BoolAttribute{
+				Optional: true,
+			},
+			"follow_redirects": schema.BoolAttribute{
+				Optional: true,
+			},
+			"max_redirects": schema.Int64Attribute{
 				Optional: true,
 			},
 		},
@@ -115,6 +116,8 @@ func (d *RequestDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		TLSMinVersion       types.String  `tfsdk:"tls_min_version"`
 		ExpectedStatusCodes []types.Int64 `tfsdk:"expected_status_codes"`
 		FailOnHTTPError     types.Bool    `tfsdk:"fail_on_http_error"`
+		FollowRedirects     types.Bool    `tfsdk:"follow_redirects"`
+		MaxRedirects        types.Int64   `tfsdk:"max_redirects"`
 
 		ResponseCode    types.Int64  `tfsdk:"response_code"`
 		ResponseHeaders types.Map    `tfsdk:"response_headers"`
@@ -171,6 +174,8 @@ func (d *RequestDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		HTTPVersion:         data.HTTPVersion.ValueString(),
 		ExpectedStatusCodes: expCodes,
 		FailOnHTTPError:     data.FailOnHTTPError.ValueBool(),
+		FollowRedirects:     data.FollowRedirects.ValueBool(),
+		MaxRedirects:        int(data.MaxRedirects.ValueInt64()),
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("HTTP request failed", err.Error())
