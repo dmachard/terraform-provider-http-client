@@ -26,6 +26,12 @@ For detailed usage see [provider's documentation page](https://registry.terrafor
 
 ## Testing
 
+Test unit
+
+```bash
+go test -v ./...
+```
+
 Local test with terraform
 
 ```bash
