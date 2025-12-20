@@ -58,8 +58,8 @@ For detailed usage see [provider's documentation page](https://registry.terrafor
 Local test with terraform
 
 ```bash
-VERSION="1.0.0"
-PLUGIN_DIR="$HOME/.terraform.d/plugins/registry.terraform.io/dmachard/http-client/${VERSION}/linux_amd64"
+export VERSION="1.0.0"
+export PLUGIN_DIR="$HOME/.terraform.d/plugins/registry.terraform.io/dmachard/http-client/${VERSION}/linux_amd64"
 
 # Build the provider binary
 go build -o terraform-provider-http-client
