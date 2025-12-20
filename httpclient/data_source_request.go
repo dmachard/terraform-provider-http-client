@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -17,6 +20,22 @@ import (
 
 // Ensure implementation
 var _ datasource.DataSource = &RequestDataSource{}
+
+// getTLSVersion converts a string version to tls.Version constant
+func getTLSVersion(version string) (uint16, error) {
+	switch version {
+	case "1.0":
+		return tls.VersionTLS10, nil
+	case "1.1":
+		return tls.VersionTLS11, nil
+	case "1.2":
+		return tls.VersionTLS12, nil
+	case "1.3":
+		return tls.VersionTLS13, nil
+	default:
+		return 0, fmt.Errorf("invalid TLS version: %s (valid values: 1.0, 1.1, 1.2, 1.3)", version)
+	}
+}
 
 type RequestDataSource struct{}
 
@@ -70,6 +89,25 @@ func (d *RequestDataSource) Schema(_ context.Context, _ datasource.SchemaRequest
 			"response_body": schema.StringAttribute{
 				Computed: true,
 			},
+			// mTLS attributes
+			"client_cert": schema.StringAttribute{
+				Optional:    true,
+				Sensitive:   true,
+				Description: "Client certificate in PEM format for mTLS authentication",
+			},
+			"client_key": schema.StringAttribute{
+				Optional:    true,
+				Sensitive:   true,
+				Description: "Client private key in PEM format for mTLS authentication",
+			},
+			"ca_cert": schema.StringAttribute{
+				Optional:    true,
+				Description: "CA certificate in PEM format to verify server certificate",
+			},
+			"tls_min_version": schema.StringAttribute{
+				Optional:    true,
+				Description: "Minimum TLS version (1.0, 1.1, 1.2, 1.3). Default: 1.2",
+			},
 		},
 	}
 }
@@ -86,6 +124,12 @@ func (d *RequestDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		RequestMethod  types.String `tfsdk:"request_method"`
 		RequestBody    types.String `tfsdk:"request_body"`
 		Timeout        types.Int64  `tfsdk:"timeout"`
+
+		// mTLS fields
+		ClientCert    types.String `tfsdk:"client_cert"`
+		ClientKey     types.String `tfsdk:"client_key"`
+		CACert        types.String `tfsdk:"ca_cert"`
+		TLSMinVersion types.String `tfsdk:"tls_min_version"`
 
 		ResponseHeaders types.Map    `tfsdk:"response_headers"`
 		ResponseCode    types.Int64  `tfsdk:"response_code"`
@@ -128,17 +172,77 @@ func (d *RequestDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		}
 	}
 
-	// set timeout
+	// Set timeout
 	timeout := 10 * time.Second
 	if !data.Timeout.IsNull() {
 		timeout = time.Duration(data.Timeout.ValueInt64()) * time.Second
+	}
+
+	// Configure TLS
+	minVersion := uint16(tls.VersionTLS12)
+	if !data.TLSMinVersion.IsNull() {
+		ver, err := getTLSVersion(data.TLSMinVersion.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError("Invalid TLS version", err.Error())
+			return
+		}
+		minVersion = ver
+	}
+
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: data.Insecure.ValueBool(),
+		MinVersion:         minVersion,
+	}
+
+	// Configure mTLS client certificate
+	if !data.ClientCert.IsNull() && !data.ClientKey.IsNull() {
+		cert, err := tls.X509KeyPair(
+			[]byte(data.ClientCert.ValueString()),
+			[]byte(data.ClientKey.ValueString()),
+		)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error loading client certificate",
+				fmt.Sprintf("Failed to parse client certificate and key: %s", err.Error()),
+			)
+			return
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	// Configure CA certificate for server verification
+	if !data.CACert.IsNull() {
+		caCertPool := x509.NewCertPool()
+		caCertPEM := []byte(data.CACert.ValueString())
+
+		// Parse PEM blocks
+		block, _ := pem.Decode(caCertPEM)
+		if block == nil {
+			resp.Diagnostics.AddError(
+				"Error parsing CA certificate",
+				"Failed to decode PEM block from CA certificate",
+			)
+			return
+		}
+
+		caCert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error parsing CA certificate",
+				fmt.Sprintf("Failed to parse CA certificate: %s", err.Error()),
+			)
+			return
+		}
+
+		caCertPool.AddCert(caCert)
+		tlsConfig.RootCAs = caCertPool
 	}
 
 	// Send HTTP request
 	client := &http.Client{
 		Timeout: timeout,
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: data.Insecure.ValueBool()},
+			TLSClientConfig: tlsConfig,
 		},
 	}
 

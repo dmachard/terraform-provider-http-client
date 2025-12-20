@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -81,6 +84,26 @@ func (r *EphemeralRequest) Schema(
 				ElementType: types.StringType,
 				Sensitive:   true,
 			},
+			"insecure": ephemeralschema.BoolAttribute{
+				Optional:    true,
+				Description: "Skip TLS certificate verification",
+			},
+			// mTLS attributes
+			"client_cert": ephemeralschema.StringAttribute{
+				Optional:    true,
+				Sensitive:   true,
+				Description: "Client certificate in PEM format for mTLS authentication",
+			},
+			"client_key": ephemeralschema.StringAttribute{
+				Optional:    true,
+				Sensitive:   true,
+				Description: "Client private key in PEM format for mTLS authentication",
+			},
+			"ca_cert": ephemeralschema.StringAttribute{
+				Optional:    true,
+				Sensitive:   true,
+				Description: "CA certificate in PEM format to verify server certificate",
+			},
 		},
 	}
 }
@@ -94,6 +117,13 @@ func (r *EphemeralRequest) Open(ctx context.Context, req ephemeral.OpenRequest, 
 		Username types.String `tfsdk:"username"`
 		Password types.String `tfsdk:"password"`
 		Timeout  types.Int64  `tfsdk:"timeout"`
+
+		Insecure types.Bool `tfsdk:"insecure"`
+
+		// mTLS fields
+		ClientCert types.String `tfsdk:"client_cert"`
+		ClientKey  types.String `tfsdk:"client_key"`
+		CACert     types.String `tfsdk:"ca_cert"`
 
 		ResponseCode    types.Int64  `tfsdk:"response_code"`
 		ResponseBody    types.String `tfsdk:"response_body"`
@@ -148,12 +178,60 @@ func (r *EphemeralRequest) Open(ctx context.Context, req ephemeral.OpenRequest, 
 		)
 	}
 
+	// Configure TLS
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: data.Insecure.ValueBool(),
+	}
+
+	// Configure mTLS client certificate
+	if !data.ClientCert.IsNull() && !data.ClientKey.IsNull() {
+		cert, err := tls.X509KeyPair(
+			[]byte(data.ClientCert.ValueString()),
+			[]byte(data.ClientKey.ValueString()),
+		)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error loading client certificate",
+				fmt.Sprintf("Failed to parse client certificate and key: %s", err.Error()),
+			)
+			return
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+
+	// Configure CA certificate for server verification
+	if !data.CACert.IsNull() {
+		caCertPool := x509.NewCertPool()
+		caCertPEM := []byte(data.CACert.ValueString())
+
+		// Parse PEM blocks
+		block, _ := pem.Decode(caCertPEM)
+		if block == nil {
+			resp.Diagnostics.AddError(
+				"Error parsing CA certificate",
+				"Failed to decode PEM block from CA certificate",
+			)
+			return
+		}
+
+		caCert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Error parsing CA certificate",
+				fmt.Sprintf("Failed to parse CA certificate: %s", err.Error()),
+			)
+			return
+		}
+
+		caCertPool.AddCert(caCert)
+		tlsConfig.RootCAs = caCertPool
+	}
+
+	// Send HTTP request
 	client := &http.Client{
 		Timeout: timeout,
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
+			TLSClientConfig: tlsConfig,
 		},
 	}
 
