@@ -88,6 +88,14 @@ func (r *EphemeralRequest) Schema(
 				Optional:    true,
 				Description: "Skip TLS certificate verification",
 			},
+			"tls_min_version": ephemeralschema.StringAttribute{
+				Optional:    true,
+				Description: "Minimum TLS version (TLS10, TLS11, TLS12, TLS13). Default: TLS12",
+			},
+			"http_version": ephemeralschema.StringAttribute{
+				Optional:    true,
+				Description: "HTTP version to use (HTTP1.1, HTTP2). Default: HTTP1.1",
+			},
 			// mTLS attributes
 			"client_cert": ephemeralschema.StringAttribute{
 				Optional:    true,
@@ -119,6 +127,9 @@ func (r *EphemeralRequest) Open(ctx context.Context, req ephemeral.OpenRequest, 
 		Timeout  types.Int64  `tfsdk:"timeout"`
 
 		Insecure types.Bool `tfsdk:"insecure"`
+
+		TLSMinVersion types.String `tfsdk:"tls_min_version"`
+		HTTPVersion   types.String `tfsdk:"http_version"`
 
 		// mTLS fields
 		ClientCert types.String `tfsdk:"client_cert"`
@@ -179,8 +190,21 @@ func (r *EphemeralRequest) Open(ctx context.Context, req ephemeral.OpenRequest, 
 	}
 
 	// Configure TLS
+	minVersion := uint16(tls.VersionTLS12)
+
+	// Set TLS minimum version
+	if !data.TLSMinVersion.IsNull() {
+		ver, err := getTLSVersion(data.TLSMinVersion.ValueString())
+		if err != nil {
+			resp.Diagnostics.AddError("Invalid TLS version", err.Error())
+			return
+		}
+		minVersion = ver
+	}
+
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: data.Insecure.ValueBool(),
+		MinVersion:         minVersion,
 	}
 
 	// Configure mTLS client certificate
@@ -228,11 +252,15 @@ func (r *EphemeralRequest) Open(ctx context.Context, req ephemeral.OpenRequest, 
 	}
 
 	// Send HTTP request
+	transport, err := configureHTTPTransport(data.HTTPVersion.ValueString(), tlsConfig)
+	if err != nil {
+		resp.Diagnostics.AddError("Invalid HTTP version", err.Error())
+		return
+	}
+
 	client := &http.Client{
-		Timeout: timeout,
-		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
-		},
+		Timeout:   timeout,
+		Transport: transport,
 	}
 
 	rsp, err := client.Do(httpReq)
