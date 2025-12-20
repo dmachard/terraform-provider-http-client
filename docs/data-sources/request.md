@@ -33,6 +33,24 @@ output "response_code" {
 }
 ```
 
+### Basic HTTP Request with Expected Status
+
+```terraform
+data "httpclient_request" "req" {
+  url = "http://httpbin.org/status/200"
+  request_method = "GET"
+
+  # Only accept 200 as a valid response
+  expected_status_codes = [200]
+  fail_on_http_error   = true
+}
+
+output "response_code" {
+  value = data.httpclient_request.req.response_code
+}
+```
+
+
 ### HTTP Request with Basic Authentication
 
 ```terraform
@@ -133,6 +151,12 @@ data "httpclient_request" "custom_ca" {
 - `request_method` (String) Method to use to perform request. Default is `GET`
 - `request_body` (String) Body of request to send
 - `timeout` (Integer) Timeout in second for HTTP connection. Default is `10` seconds
+
+- `client_cert` (String) – Client certificate in PEM format for mTLS authentication.
+- `client_key` (String) – Client private key in PEM format for mTLS authentication.
+- `ca_cert` (String) – CA certificate in PEM format to verify server certificate.
+- `expected_status_codes` (List of Int) – HTTP status codes considered successful. Default: all codes accepted.
+- `fail_on_http_error` (Boolean) – Whether to fail the request if the HTTP status is not in expected_status_codes. Default: true.
 
 ## Attributes Reference
 

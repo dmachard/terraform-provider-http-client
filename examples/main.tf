@@ -7,6 +7,18 @@ terraform {
   }
 }
 
+data "httpclient_request" "req_expect" {
+  url = "http://httpbin.org/status/200"
+  request_method = "GET"
+
+  expected_status_codes = [200]
+  fail_on_http_error   = true
+}
+
+output "response_code_valid" {
+  value = data.httpclient_request.req_expect.response_code
+}
+
 ephemeral "httpclient_request" "token" {
   url            = "https://httpbingo.org/post"
   request_method = "POST"
@@ -24,7 +36,7 @@ ephemeral "httpclient_request" "check" {
 data "httpclient_request" "req" {
   url = "http://httpbingo.org/basic-auth/user/passwd"
   username = "user"
-  password = "password"
+  password = "passwd"
   request_headers = {
     Content-Type: "application/x-www-form-urlencoded",
   }

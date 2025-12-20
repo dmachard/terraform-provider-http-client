@@ -5,95 +5,100 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
-	"github.com/hashicorp/terraform-plugin-framework/ephemeral"
-	ephemeralschema "github.com/hashicorp/terraform-plugin-framework/ephemeral/schema"
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-var _ ephemeral.EphemeralResource = &EphemeralRequest{}
+// Ensure implementation
+var _ datasource.DataSource = &RequestDataSource{}
 
-type EphemeralRequest struct{}
+type RequestDataSource struct{}
 
-func NewEphemeralRequest() ephemeral.EphemeralResource {
-	return &EphemeralRequest{}
+// Constructor
+func NewRequestDataSource() datasource.DataSource {
+	return &RequestDataSource{}
 }
 
-func (r *EphemeralRequest) Metadata(ctx context.Context, req ephemeral.MetadataRequest, resp *ephemeral.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_request"
+// Metadata
+func (d *RequestDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = "httpclient_request"
 }
 
-func (r *EphemeralRequest) Schema(ctx context.Context, req ephemeral.SchemaRequest, resp *ephemeral.SchemaResponse) {
-	resp.Schema = ephemeralschema.Schema{
-		Attributes: map[string]ephemeralschema.Attribute{
-			"url": ephemeralschema.StringAttribute{
+// Schema
+func (d *RequestDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"url": schema.StringAttribute{
 				Required: true,
 			},
-			"request_method": ephemeralschema.StringAttribute{
+			"username": schema.StringAttribute{
 				Optional: true,
 			},
-			"request_headers": ephemeralschema.MapAttribute{
-				Optional:    true,
+			"password": schema.StringAttribute{
+				Optional:  true,
+				Sensitive: true,
+			},
+			"insecure": schema.BoolAttribute{
+				Optional: true,
+			},
+			"timeout": schema.Int64Attribute{
+				Optional: true,
+			},
+			"request_headers": schema.MapAttribute{
 				ElementType: types.StringType,
+				Optional:    true,
 			},
-			"request_body": ephemeralschema.StringAttribute{
-				Optional:  true,
-				Sensitive: true,
-			},
-			"username": ephemeralschema.StringAttribute{
+			"request_method": schema.StringAttribute{
 				Optional: true,
 			},
-			"password": ephemeralschema.StringAttribute{
-				Optional:  true,
-				Sensitive: true,
-			},
-			"timeout": ephemeralschema.Int64Attribute{
+			"request_body": schema.StringAttribute{
 				Optional: true,
 			},
-			"response_code": ephemeralschema.Int64Attribute{
+			"response_headers": schema.MapAttribute{
+				ElementType: types.StringType,
+				Computed:    true,
+			},
+			"response_code": schema.Int64Attribute{
 				Computed: true,
 			},
-			"response_body": ephemeralschema.StringAttribute{
-				Computed:  true,
-				Sensitive: true,
+			"response_body": schema.StringAttribute{
+				Computed: true,
 			},
-			"response_headers": ephemeralschema.MapAttribute{
-				Computed:    true,
-				ElementType: types.StringType,
+			"http_version": schema.StringAttribute{
+				Optional:    true,
+				Description: "HTTP version to use (HTTP1.1, HTTP2). Default: HTTP1.1",
+			},
+			"client_cert": schema.StringAttribute{
+				Optional:    true,
 				Sensitive:   true,
+				Description: "Client certificate in PEM format for mTLS authentication",
 			},
-			"insecure": ephemeralschema.BoolAttribute{
-				Optional: true,
+			"client_key": schema.StringAttribute{
+				Optional:    true,
+				Sensitive:   true,
+				Description: "Client private key in PEM format for mTLS authentication",
 			},
-			"tls_min_version": ephemeralschema.StringAttribute{
-				Optional: true,
+			"ca_cert": schema.StringAttribute{
+				Optional:    true,
+				Description: "CA certificate in PEM format to verify server certificate",
 			},
-			"http_version": ephemeralschema.StringAttribute{
-				Optional: true,
+			"tls_min_version": schema.StringAttribute{
+				Optional:    true,
+				Description: "Minimum TLS version (1.0, 1.1, 1.2, 1.3). Default: 1.2",
 			},
-			"client_cert": ephemeralschema.StringAttribute{
-				Optional:  true,
-				Sensitive: true,
-			},
-			"client_key": ephemeralschema.StringAttribute{
-				Optional:  true,
-				Sensitive: true,
-			},
-			"ca_cert": ephemeralschema.StringAttribute{
-				Optional:  true,
-				Sensitive: true,
-			},
-			"expected_status_codes": ephemeralschema.ListAttribute{
+			"expected_status_codes": schema.ListAttribute{
 				Optional:    true,
 				ElementType: types.Int64Type,
 			},
-			"fail_on_http_error": ephemeralschema.BoolAttribute{
+			"fail_on_http_error": schema.BoolAttribute{
 				Optional: true,
 			},
 		},
 	}
 }
 
-func (r *EphemeralRequest) Open(ctx context.Context, req ephemeral.OpenRequest, resp *ephemeral.OpenResponse) {
+func (d *RequestDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var data struct {
 		URL                 types.String  `tfsdk:"url"`
 		Method              types.String  `tfsdk:"request_method"`
@@ -112,8 +117,8 @@ func (r *EphemeralRequest) Open(ctx context.Context, req ephemeral.OpenRequest, 
 		FailOnHTTPError     types.Bool    `tfsdk:"fail_on_http_error"`
 
 		ResponseCode    types.Int64  `tfsdk:"response_code"`
-		ResponseBody    types.String `tfsdk:"response_body"`
 		ResponseHeaders types.Map    `tfsdk:"response_headers"`
+		ResponseBody    types.String `tfsdk:"response_body"`
 	}
 
 	diags := req.Config.Get(ctx, &data)
@@ -136,34 +141,22 @@ func (r *EphemeralRequest) Open(ctx context.Context, req ephemeral.OpenRequest, 
 		expCodes = append(expCodes, int(v.ValueInt64()))
 	}
 
-	// Default method GET
-	method := "GET"
-	if !data.Method.IsNull() && data.Method.ValueString() != "" {
-		method = data.Method.ValueString()
-	}
-
-	// Timeout
-	timeout := 10 * time.Second
-	if !data.Timeout.IsNull() {
-		timeout = time.Duration(data.Timeout.ValueInt64()) * time.Second
-	}
-
 	// Execute request
 	result, err := ExecuteRequest(RequestConfig{
 		Ctx:                 ctx,
 		URL:                 data.URL.ValueString(),
-		Method:              method,
+		Method:              "GET",
+		Body:                []byte{},
 		Headers:             hdrs,
-		Body:                []byte(data.Body.ValueString()),
 		Username:            data.Username.ValueString(),
 		Password:            data.Password.ValueString(),
-		Timeout:             timeout,
+		Timeout:             time.Duration(10) * time.Second,
 		Insecure:            data.Insecure.ValueBool(),
-		HTTPVersion:         data.HTTPVersion.ValueString(),
+		TLSMinVersion:       data.TLSMinVersion.ValueString(),
 		ClientCertPEM:       data.ClientCert.ValueString(),
 		ClientKeyPEM:        data.ClientKey.ValueString(),
 		CACertPEM:           data.CACert.ValueString(),
-		TLSMinVersion:       data.TLSMinVersion.ValueString(),
+		HTTPVersion:         data.HTTPVersion.ValueString(),
 		ExpectedStatusCodes: expCodes,
 		FailOnHTTPError:     data.FailOnHTTPError.ValueBool(),
 	})
@@ -177,9 +170,10 @@ func (r *EphemeralRequest) Open(ctx context.Context, req ephemeral.OpenRequest, 
 		headersAttr[k] = types.StringValue(v)
 	}
 
+	// Set result
 	data.ResponseCode = types.Int64Value(int64(result.ResponseCode))
 	data.ResponseBody = types.StringValue(string(result.ResponseBody))
 	data.ResponseHeaders = types.MapValueMust(types.StringType, headersAttr)
 
-	resp.Result.Set(ctx, &data)
+	resp.State.Set(ctx, &data)
 }
