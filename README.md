@@ -21,35 +21,6 @@ It's an alternative to the hashicorp http provider.
 
 ## Using the Provider
 
-```hcl
-terraform {
-  required_providers {
-    httpclient = {
-      version = "1.0.0"
-      source  = "github.com/dmachard/http-client"
-    }
-  }
-}
-
-data "httpclient_request" "req" {
-  url = "http://httpbin.org/hidden-basic-auth/user/passwd"
-  username = "user"
-  password = "passwd"
-  request_headers = {
-    Content-Type: "application/x-www-form-urlencoded",
-  }
-  request_body = "scope=access"
-}
-
-output "response_body" {
-  value = jsondecode(data.httpclient_request.req.response_body).authenticated
-}
-
-output "response_code" {
-  value = data.httpclient_request.req.response_code
-}
-```
-
 For detailed usage see [provider's documentation page](https://registry.terraform.io/providers/dmachard/http-client/latest/docs)
 
 
@@ -60,6 +31,8 @@ Local test with terraform
 ```bash
 export VERSION="1.0.0"
 export PLUGIN_DIR="$HOME/.terraform.d/plugins/registry.terraform.io/dmachard/http-client/${VERSION}/linux_amd64"
+export TF_LOG=DEBUG
+export TF_LOG_PATH=./terraform.log
 
 # Build the provider binary
 go build -o terraform-provider-http-client
@@ -72,6 +45,7 @@ cp terraform-provider-http-client "${PLUGIN_DIR}"
 
 cd examples/
 terraform init
-
 terraform plan
+terraform apply
+cd ..
 ```
