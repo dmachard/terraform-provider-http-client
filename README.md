@@ -5,7 +5,9 @@ It's an alternative to the hashicorp http provider.
 
 ## Why this provider?
 
-This provider gives fine-grained control over **TLS versions (1.0 to 1.3)**, **HTTP versions (1 to 3)**.
+This provider gives fine-grained control over
+- **TLS versions (1.0 to 1.3)**
+- **HTTP versions (1 to 3)**
 
 ## Requirements
 
