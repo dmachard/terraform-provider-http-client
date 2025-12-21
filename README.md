@@ -3,6 +3,10 @@
 A terraform HTTP provider for interacting with HTTP servers.
 It's an alternative to the hashicorp http provider.
 
+## Why this provider?
+
+This provider gives fine-grained control over **TLS versions (1.0 to 1.3)**, **HTTP protocol control**, **mTLS configuration**.
+
 ## Requirements
 
 -	[Terraform](https://www.terraform.io/downloads.html) > 1.11
